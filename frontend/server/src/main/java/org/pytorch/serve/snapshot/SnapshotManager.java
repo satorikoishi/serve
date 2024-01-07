@@ -150,7 +150,7 @@ public final class SnapshotManager {
 
     private boolean validate(Snapshot snapshot) throws IOException, InvalidSnapshotException {
         logger.info("Validating snapshot {}", snapshot.getName());
-        logger.info("Hello from jwkaguya/torchserve")
+        logger.info("Hello from jwkaguya/torchserve");
         String modelStore = configManager.getModelStore();
 
         Map<String, Map<String, JsonObject>> models = snapshot.getModels();
