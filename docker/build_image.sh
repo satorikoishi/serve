@@ -11,6 +11,7 @@ UPDATE_BASE_IMAGE=false
 USE_CUSTOM_TAG=false
 CUDA_VERSION=""
 USE_LOCAL_SERVE_FOLDER=false
+NO_CACHE=false
 BUILD_WITH_IPEX=false
 BUILD_NIGHTLY=false
 PYTHON_VERSION=3.9
@@ -78,6 +79,8 @@ do
           ;;
         -n|--nightly)
           BUILD_NIGHTLY=true
+        -nc|--no-cache)
+          NO_CACHE=true
           shift
           ;;
         -py|--pythonversion)
@@ -165,5 +168,13 @@ elif [ "${BUILD_TYPE}" == "benchmark" ]
 then
   DOCKER_BUILDKIT=1 docker build --pull --no-cache --file Dockerfile.benchmark --build-arg USE_LOCAL_SERVE_FOLDER=$USE_LOCAL_SERVE_FOLDER --build-arg BASE_IMAGE="${BASE_IMAGE}" --build-arg BRANCH_NAME="${BRANCH_NAME}" --build-arg CUDA_VERSION="${CUDA_VERSION}" --build-arg MACHINE_TYPE="${MACHINE}" --build-arg PYTHON_VERSION="${PYTHON_VERSION}" -t "${DOCKER_TAG}" .
 else
-  DOCKER_BUILDKIT=1 docker build --pull --no-cache --file Dockerfile.dev -t "${DOCKER_TAG}" --build-arg BUILD_TYPE="${BUILD_TYPE}" --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg BRANCH_NAME="${BRANCH_NAME}" --build-arg CUDA_VERSION="${CUDA_VERSION}" --build-arg MACHINE_TYPE="${MACHINE}" --build-arg BUILD_WITH_IPEX="${BUILD_WITH_IPEX}" --build-arg PYTHON_VERSION="${PYTHON_VERSION}" .
+  BUILD_COMMAND="DOCKER_BUILDKIT=1 docker build --file Dockerfile.dev -t ${DOCKER_TAG} --build-arg BUILD_TYPE=${BUILD_TYPE} --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg BRANCH_NAME=${BRANCH_NAME} --build-arg CUDA_VERSION=${CUDA_VERSION} --build-arg MACHINE_TYPE=${MACHINE} --build-arg BUILD_WITH_IPEX=${BUILD_WITH_IPEX} --build-arg PYTHON_VERSION=${PYTHON_VERSION} ."
+
+  if [ "${NO_CACHE}" == "true" ]; then
+    BUILD_COMMAND="$BUILD_COMMAND --pull --no-cache"
+  fi
+
+  echo $BUILD_COMMAND
+
+  eval $BUILD_COMMAND
 fi
