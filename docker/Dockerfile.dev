@@ -66,7 +66,7 @@ ENV PATH="/home/venv/bin:$PATH"
 
 RUN python -m pip install -U pip setuptools
 RUN export USE_CUDA=1
-RUN git clone --depth 1 https://github.com/satorikoishi/serve.git
+RUN git clone https://github.com/satorikoishi/serve.git
 
 WORKDIR "serve"
 
