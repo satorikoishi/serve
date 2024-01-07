@@ -1,8 +1,8 @@
 #!/bin/bash
 
-DOCKER_TAG="pytorch/torchserve-kfs:latest"
-BASE_IMAGE="pytorch/torchserve:latest"
 DOCKER_FILE="Dockerfile"
+DOCKER_TAG="jwkaguya/torchserve-kfs:latest"
+BASE_IMAGE="jwkaguya/torchserve:latest"
 
 for arg in "$@"
 do
@@ -10,15 +10,15 @@ do
         -h|--help)
           echo "options:"
           echo "-h, --help  show brief help"
-          echo "-g, --gpu specify for gpu build"
+          # echo "-g, --gpu specify for gpu build"
           echo "-t, --tag specify tag name for docker image"
           exit 0
           ;;
-        -g|--gpu)
-          DOCKER_TAG="pytorch/torchserve-kfs:latest-gpu"
-          BASE_IMAGE="pytorch/torchserve:latest-gpu"
-          shift
-          ;;
+        # -g|--gpu)
+        #   DOCKER_TAG="pytorch/torchserve-kfs:latest-gpu"
+        #   BASE_IMAGE="pytorch/torchserve:latest-gpu"
+        #   shift
+        #   ;;
         -d|--dev)
           DOCKER_FILE="Dockerfile.dev"
           shift

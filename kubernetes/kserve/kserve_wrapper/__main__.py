@@ -100,6 +100,8 @@ if __name__ == "__main__":
     ) = parse_config()
 
     protocol = os.environ.get("PROTOCOL_VERSION")
+    
+    logging.info("Hello from jwkaguya/torchserve-kfs")
 
     models = []
 

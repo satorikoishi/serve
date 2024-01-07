@@ -1,0 +1,1 @@
+./build_image.sh -g -bt dev -b dev -t jwkaguya/torchserve:latest -cv cu118
