@@ -79,6 +79,8 @@ do
           ;;
         -n|--nightly)
           BUILD_NIGHTLY=true
+          shift
+          ;;
         -nc|--no-cache)
           NO_CACHE=true
           shift

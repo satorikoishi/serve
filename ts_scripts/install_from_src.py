@@ -18,8 +18,9 @@ def install_from_src(dev=False):
             else f"pip install --force-reinstall {binary}"
         )
         print(f"## In directory {os.getcwd()} | Executing command {cmd}")
-        os.system(cmd)
-
+        exit_status = os.system(cmd)
+        if exit_status != 0:
+            sys.exit(exit_status)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
