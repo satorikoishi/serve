@@ -1,1 +1,1 @@
-./build_image.sh -g -bt dev -b dev -t jwkaguya/torchserve:latest -cv cu118 $1
+./build_image.sh -g -bt dev -b dev -t jwkaguya/torchserve:latest-gpu -cv cu118 $1

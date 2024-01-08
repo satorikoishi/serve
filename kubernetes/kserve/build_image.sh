@@ -1,8 +1,8 @@
 #!/bin/bash
 
 DOCKER_FILE="Dockerfile"
-DOCKER_TAG="jwkaguya/torchserve-kfs:latest"
-BASE_IMAGE="jwkaguya/torchserve:latest"
+DOCKER_TAG="jwkaguya/torchserve-kfs:latest-gpu"
+BASE_IMAGE="jwkaguya/torchserve:latest-gpu"
 
 for arg in "$@"
 do
