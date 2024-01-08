@@ -1,0 +1,71 @@
+# syntax = docker/dockerfile:experimental
+#
+# Following comments have been shamelessly copied from https://github.com/pytorch/pytorch/blob/master/Dockerfile
+#
+# NOTE: To build this you will need a docker version > 18.06 with
+#       experimental enabled and DOCKER_BUILDKIT=1
+#
+#       If you do not use buildkit you are not going to have a good time
+#
+#       For reference:
+#           https://docs.docker.com/develop/develop-images/build_enhancements/
+
+ARG BASE_IMAGE=ubuntu:rolling
+ARG BUILD_TYPE=dev
+FROM ${BASE_IMAGE} AS compile-image
+
+ARG BASE_IMAGE
+ARG BRANCH_NAME=dev
+ARG MACHINE_TYPE=cpu
+ARG CUDA_VERSION
+
+ARG BUILD_WITH_IPEX
+ARG IPEX_VERSION=1.11.0
+ARG IPEX_URL=https://software.intel.com/ipex-whl-stable
+ARG PYTHON_VERSION=3.9
+
+ENV PYTHONUNBUFFERED TRUE
+
+RUN --mount=type=cache,id=apt-dev,target=/var/cache/apt \
+    apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install software-properties-common -y && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    fakeroot \
+    ca-certificates \
+    dpkg-dev \
+    sudo \
+    g++ \
+    git \
+    python$PYTHON_VERSION \
+    python$PYTHON_VERSION-dev \
+    python3-distutils \
+    python$PYTHON_VERSION-venv \
+    python3-venv \
+    build-essential \
+    openjdk-17-jdk \
+    curl \
+    vim \
+    numactl \
+    && if [ "$BUILD_WITH_IPEX" = "true" ]; then apt-get update && apt-get install -y libjemalloc-dev libgoogle-perftools-dev libomp-dev && ln -s /usr/lib/x86_64-linux-gnu/libjemalloc.so /usr/lib/libjemalloc.so && ln -s /usr/lib/x86_64-linux-gnu/libtcmalloc.so /usr/lib/libtcmalloc.so && ln -s /usr/lib/x86_64-linux-gnu/libiomp5.so /usr/lib/libiomp5.so; fi \
+    && rm -rf /var/lib/apt/lists/* \
+    && cd /tmp \
+    && curl -O https://bootstrap.pypa.io/get-pip.py \
+    && python$PYTHON_VERSION get-pip.py
+
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python$PYTHON_VERSION 1 \
+    && update-alternatives --install /usr/local/bin/pip pip /usr/local/bin/pip3 1
+
+RUN python$PYTHON_VERSION -m venv /home/venv
+ENV PATH="/home/venv/bin:$PATH"
+
+RUN python -m pip install -U pip setuptools
+RUN export USE_CUDA=1
+RUN git clone https://github.com/satorikoishi/serve.git
+
+WORKDIR "serve"
+
+RUN git checkout ${BRANCH_NAME} \
+    && if [ -z "$CUDA_VERSION" ]; then python ts_scripts/install_dependencies.py --environment=dev; else python ts_scripts/install_dependencies.py --environment=dev  --cuda $CUDA_VERSION; fi \
+    && if [ "$BUILD_WITH_IPEX" = "true" ]; then python -m pip install --no-cache-dir intel_extension_for_pytorch==${IPEX_VERSION} -f ${IPEX_URL}; fi
