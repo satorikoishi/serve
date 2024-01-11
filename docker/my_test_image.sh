@@ -1,0 +1,1 @@
+./build_image.sh -g -bt test -b dev -t jwkaguya/torchserve-test -cv cu118 $1
