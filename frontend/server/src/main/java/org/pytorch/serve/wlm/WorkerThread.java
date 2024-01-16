@@ -335,9 +335,9 @@ public class WorkerThread implements Runnable {
     }
 
     private void connect() throws WorkerInitializationException, InterruptedException {
-        if (!configManager.isDebug()) {
-            lifeCycle.startWorker(port, getDeviceIds());
-        }
+        // if (!configManager.isDebug()) {
+        //     lifeCycle.startWorker(port, getDeviceIds());
+        // }
 
         String modelName = model.getModelName();
         String modelVersion = model.getVersion();
