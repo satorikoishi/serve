@@ -10,6 +10,7 @@ import os
 import platform
 import socket
 import sys
+import json
 
 from ts.arg_parser import ArgParser
 from ts.metrics.metric_cache_yaml_impl import MetricsCacheYamlImpl
@@ -26,6 +27,64 @@ WORLD_SIZE = int(os.getenv("WORLD_SIZE", 0))
 WORLD_RANK = int(os.getenv("RANK", 0))
 LOCAL_WORLD_SIZE = int(os.getenv("LOCAL_WORLD_SIZE", 0))
 
+def get_only_child_directory(parent_directory):
+    # List everything in the parent directory
+    all_items = os.listdir(parent_directory)
+    
+    # Filter out the list to only directories
+    child_directories = [item for item in all_items if os.path.isdir(os.path.join(parent_directory, item))]
+    
+    # Check if there is exactly one child directory
+    if len(child_directories) == 1:
+        # Return the only child directory path
+        return os.path.join(parent_directory, child_directories[0])
+    else:
+        # Return None or raise an error if there are no directories or more than one directory
+        raise RuntimeError(f"Not only one dir under {parent_directory}")
+
+def parse_from_config(model_path):
+    gpu = 0  # TODO: fix this
+    limit_max_image_pixels = True
+    envelope = None
+    
+    # Constructing the paths based on the directory structure provided by the user.
+    config_properties_path = os.path.join(model_path, "config", "config.properties")
+    model_dir = get_only_child_directory(os.path.join(model_path, "model-store"))
+    sys.path.append(model_dir)
+    manifest_json_path = os.path.join(model_dir, "MAR-INF", "MANIFEST.json")
+    # Read config from config.properties
+    if not os.path.exists(config_properties_path):
+        raise RuntimeError("config.properties NOT found.")
+    else:
+        with open(config_properties_path) as f:
+            for line in f.readlines():
+                # Find the line that contains the model_snapshot
+                if line.startswith("model_snapshot="):
+                    # Extract the JSON part of the line
+                    json_str = line.split("model_snapshot=")[-1].strip()
+                    
+                    # Parse the JSON string
+                    model_snapshot = json.loads(json_str)
+                    
+                    # Assuming there's only one model in the snapshot, we'll extract its details
+                    # regardless of the model name since we don't know it in advance.
+                    model_info = next(iter(model_snapshot["models"].values()))
+                    
+                    # Extract the batch size from the first (and presumably only) version of the model
+                    model_version_info = next(iter(model_info.values()))
+                    batch_size = model_version_info.get("batchSize")
+                    
+    # Read config from MANIFEST.json
+    manifest = None
+    if not os.path.exists(manifest_json_path):
+        raise RuntimeError("MANIFEST.json NOT found.")
+    else:
+        with open(manifest_json_path) as f:
+            manifest = json.load(f)
+            model_name = manifest["model"]["modelName"]
+            handler = manifest["model"]["handler"]
+            
+    return model_name, model_dir, handler, gpu, batch_size, envelope, limit_max_image_pixels
 
 class TorchModelServiceWorker(object):
     """
@@ -80,6 +139,9 @@ class TorchModelServiceWorker(object):
             raise RuntimeError(
                 f"Failed to initialize metrics from file {metrics_config}"
             )
+    
+    def load_model_in_advance(self, model_path):
+        return self.load_model_internal(*parse_from_config(model_path))
 
     def load_model(self, load_model_request):
         """
@@ -125,7 +187,32 @@ class TorchModelServiceWorker(object):
             limit_max_image_pixels = True
             if "limitMaxImagePixels" in load_model_request:
                 limit_max_image_pixels = bool(load_model_request["limitMaxImagePixels"])
-
+            
+            return self.load_model_internal(model_name, model_dir, handler, 
+                            gpu, batch_size, envelope, limit_max_image_pixels)
+        except MemoryError as ex:
+            logging.exception(
+                "Load model %s cpu OOM, exception %s", model_name, str(ex)
+            )
+            return None, "System out of memory", 507
+        except RuntimeError as ex:  # pylint: disable=broad-except
+            if "CUDA" in str(ex):
+                # Handles Case A: CUDA error: CUBLAS_STATUS_NOT_INITIALIZED (Close to OOM) &
+                # Case B: CUDA out of memory (OOM)
+                logging.exception(
+                    "Load model %s cuda OOM, exception %s", model_name, str(ex)
+                )
+                return None, "System out of memory", 507
+            else:
+                # Sanity testcases fail without this
+                logging.exception(
+                    "Failed to load model %s, exception %s", model_name, str(ex)
+                )
+                return None, "Unknown exception", 500
+    
+    def load_model_internal(self, model_name, model_dir, handler, 
+                            gpu, batch_size, envelope, limit_max_image_pixels):
+        try:
             self.metrics_cache.model_name = model_name
             model_loader = ModelLoaderFactory.get_model_loader()
             service = model_loader.load(
@@ -162,7 +249,7 @@ class TorchModelServiceWorker(object):
                 )
                 return None, "Unknown exception", 500
 
-    def handle_connection(self, cl_socket):
+    def handle_connection(self, cl_socket, load_in_advance=False):
         """
         Handle socket connection.
 
@@ -181,17 +268,26 @@ class TorchModelServiceWorker(object):
                 resp = service.predict(msg)
                 cl_socket.sendall(resp)
             elif cmd == b"L":
-                service, result, code = self.load_model(msg)
-                resp = bytearray()
-                resp += create_load_model_response(code, result)
-                cl_socket.sendall(resp)
-                if code != 200:
-                    raise RuntimeError("{} - {}".format(code, result))
-                service.set_cl_socket(cl_socket)
+                if load_in_advance:
+                    # Return dummy resp, TODO: set pid
+                    result = "Already loaded model in advance."
+                    code = 200
+                    resp = bytearray()
+                    resp += create_load_model_response(code, result)
+                    cl_socket.sendall(resp)
+                else:
+                    # Original case
+                    service, result, code = self.load_model(msg)
+                    resp = bytearray()
+                    resp += create_load_model_response(code, result)
+                    cl_socket.sendall(resp)
+                    if code != 200:
+                        raise RuntimeError("{} - {}".format(code, result))
+                    service.set_cl_socket(cl_socket)
             else:
                 raise ValueError("Received unknown command: {}".format(cmd))
 
-    def run_server(self):
+    def run_server(self, model_path=None):
         """
         Run the backend worker process and listen on a socket
         :return:
@@ -211,6 +307,15 @@ class TorchModelServiceWorker(object):
         logging.info("[PID]%d", os.getpid())
         logging.info("Torch worker started.")
         logging.info("Python runtime: %s", platform.python_version())
+        
+        # Load model in advance
+        load_in_advance = False
+        if model_path:
+            load_in_advance = True
+            service, result, code = self.load_model_in_advance(model_path)
+            logging.info("Model loaded in advance.")
+            if code != 200:
+                raise RuntimeError("{} - {}".format(code, result))
 
         while True:
             (cl_socket, _) = self.sock.accept()
@@ -218,7 +323,11 @@ class TorchModelServiceWorker(object):
             cl_socket.setblocking(True)
 
             logging.info("Connection accepted: %s.", cl_socket.getsockname())
-            self.handle_connection(cl_socket)
+            
+            # Set service if already loaded model
+            if load_in_advance:
+                service.set_cl_socket(cl_socket)
+            self.handle_connection(cl_socket, load_in_advance)
 
 
 if __name__ == "__main__":
@@ -250,7 +359,7 @@ if __name__ == "__main__":
         worker = TorchModelServiceWorker(
             sock_type, socket_name, host, port, metrics_config
         )
-        worker.run_server()
+        worker.run_server(args.model_path)
         if BENCHMARK:
             pr.disable()
             pr.dump_stats("/tmp/tsPythonProfile.prof")

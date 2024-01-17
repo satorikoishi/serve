@@ -127,6 +127,14 @@ class ArgParser(object):
             type=str,
             help="Metrics configuration file",
         )
+        
+        parser.add_argument(
+            "--model-path",
+            dest="model_path",
+            type=str,
+            default=None,
+            help="Model root directory, which contains config and model-store dir",
+        )
 
         return parser
 
