@@ -344,11 +344,10 @@ if __name__ == "__main__":
     sock_type = None
     socket_name = None
     
-    logging.info("Hello from model service worker")
-
     # noinspection PyBroadException
     try:
         logging.basicConfig(stream=sys.stdout, format="%(message)s", level=logging.INFO)
+        logging.info("Hello from model service worker")
         args = ArgParser.model_service_worker_args().parse_args()
         socket_name = args.sock_name
         sock_type = args.sock_type
