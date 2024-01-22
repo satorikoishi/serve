@@ -27,6 +27,21 @@ ENV PYTHONUNBUFFERED TRUE
 RUN python$PYTHON_VERSION -m venv /home/venv
 RUN git config --global http.proxy $GIT_HTTP_PROXY
 RUN git pull
+RUN PROXY_URL=$(echo $GIT_HTTP_PROXY | sed -e 's/http:\/\///') && \
+    PROXY_USER=$(echo $PROXY_URL | cut -d':' -f1) && \
+    PROXY_PASSWD=$(echo $PROXY_URL | cut -d'@' -f1 | cut -d':' -f2) && \
+    PROXY_HOST=$(echo $PROXY_URL | cut -d'@' -f2 | cut -d':' -f1) && \
+    PROXY_PORT=$(echo $PROXY_URL | cut -d':' -f3) && \
+    mkdir -p ~/.gradle && \
+    echo "systemProp.http.proxyHost=$PROXY_HOST" >> ~/.gradle/gradle.properties && \
+    echo "systemProp.http.proxyPort=$PROXY_PORT" >> ~/.gradle/gradle.properties && \
+    echo "systemProp.http.proxyUser=$PROXY_USER" >> ~/.gradle/gradle.properties && \
+    echo "systemProp.http.proxyPassword=$PROXY_PASSWD" >> ~/.gradle/gradle.properties && \
+    echo "systemProp.https.proxyHost=$PROXY_HOST" >> ~/.gradle/gradle.properties && \
+    echo "systemProp.https.proxyPort=$PROXY_PORT" >> ~/.gradle/gradle.properties && \
+    echo "systemProp.https.proxyUser=$PROXY_USER" >> ~/.gradle/gradle.properties && \
+    echo "systemProp.https.proxyPassword=$PROXY_PASSWD" >> ~/.gradle/gradle.properties && \
+    echo "systemProp.jdk.http.auth.tunneling.disabledSchemes=\"\"" >> ~/.gradle/gradle.properties
 RUN python ts_scripts/install_from_src.py
 
 # Final image for production
