@@ -295,6 +295,17 @@ class TorchModelServiceWorker(object):
         Run the backend worker process and listen on a socket
         :return:
         """
+        # Load model in advance
+        load_in_advance = False
+        if model_path:
+            load_in_advance = True
+            service, result, code = self.load_model_in_advance(model_path)
+            logging.info("Model loaded in advance.")
+            if code != 200:
+                raise RuntimeError("{} - {}".format(code, result))
+        else:
+            service = None
+            
         if not DEBUG:
             self.sock.settimeout(SOCKET_ACCEPT_TIMEOUT)
 
@@ -310,17 +321,6 @@ class TorchModelServiceWorker(object):
         logging.info("[PID]%d", os.getpid())
         logging.info("Torch worker started.")
         logging.info("Python runtime: %s", platform.python_version())
-        
-        # Load model in advance
-        load_in_advance = False
-        if model_path:
-            load_in_advance = True
-            service, result, code = self.load_model_in_advance(model_path)
-            logging.info("Model loaded in advance.")
-            if code != 200:
-                raise RuntimeError("{} - {}".format(code, result))
-        else:
-            service = None
 
         while True:
             (cl_socket, _) = self.sock.accept()
@@ -343,6 +343,8 @@ if __name__ == "__main__":
 
     sock_type = None
     socket_name = None
+    
+    logging.info("Hello from model service worker")
 
     # noinspection PyBroadException
     try:
