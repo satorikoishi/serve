@@ -18,12 +18,14 @@ FROM ${INTERMEDIATE_IMAGE} AS compile-image
 ARG BASE_IMAGE
 ARG BRANCH_NAME=dev
 ARG CUDA_VERSION
+ARG GIT_HTTP_PROXY
 
 ARG PYTHON_VERSION=3.9
 
 ENV PYTHONUNBUFFERED TRUE
 
 RUN python$PYTHON_VERSION -m venv /home/venv
+RUN git config --global http.proxy $GIT_HTTP_PROXY
 RUN git pull
 RUN python ts_scripts/install_from_src.py
 

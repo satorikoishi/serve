@@ -187,7 +187,7 @@ then
   echo $BUILD_COMMAND
   eval $BUILD_COMMAND
 else
-  BUILD_COMMAND="DOCKER_BUILDKIT=1 docker build --file Dockerfile.dev -t ${DOCKER_TAG} --build-arg BUILD_TYPE=${BUILD_TYPE} --build-arg INTERMEDIATE_IMAGE=$INTERMEDIATE_IMAGE --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg BRANCH_NAME=${BRANCH_NAME} --build-arg CUDA_VERSION=${CUDA_VERSION} --build-arg MACHINE_TYPE=${MACHINE} --build-arg BUILD_WITH_IPEX=${BUILD_WITH_IPEX} --build-arg PYTHON_VERSION=${PYTHON_VERSION} ."
+  BUILD_COMMAND="DOCKER_BUILDKIT=1 docker build --file Dockerfile.dev -t ${DOCKER_TAG} --build-arg BUILD_TYPE=${BUILD_TYPE} --build-arg INTERMEDIATE_IMAGE=$INTERMEDIATE_IMAGE --build-arg BASE_IMAGE=$BASE_IMAGE --build-arg BRANCH_NAME=${BRANCH_NAME} --build-arg CUDA_VERSION=${CUDA_VERSION} --build-arg MACHINE_TYPE=${MACHINE} --build-arg BUILD_WITH_IPEX=${BUILD_WITH_IPEX} --build-arg PYTHON_VERSION=${PYTHON_VERSION} --build-arg GIT_HTTP_PROXY=${GIT_HTTP_PROXY} ."
   if [ "${NO_CACHE}" == "true" ]; then
     BUILD_COMMAND="$BUILD_COMMAND --pull --no-cache"
   fi
