@@ -249,7 +249,7 @@ class TorchModelServiceWorker(object):
                 )
                 return None, "Unknown exception", 500
 
-    def handle_connection(self, cl_socket, load_in_advance=False):
+    def handle_connection(self, cl_socket, load_in_advance=False, loaded_service=None):
         """
         Handle socket connection.
 
@@ -257,6 +257,9 @@ class TorchModelServiceWorker(object):
         :return:
         """
         service = None
+        if load_in_advance:
+            service = loaded_service
+            
         while True:
             if BENCHMARK:
                 pr.disable()
@@ -316,6 +319,8 @@ class TorchModelServiceWorker(object):
             logging.info("Model loaded in advance.")
             if code != 200:
                 raise RuntimeError("{} - {}".format(code, result))
+        else:
+            service = None
 
         while True:
             (cl_socket, _) = self.sock.accept()
@@ -327,7 +332,7 @@ class TorchModelServiceWorker(object):
             # Set service if already loaded model
             if load_in_advance:
                 service.set_cl_socket(cl_socket)
-            self.handle_connection(cl_socket, load_in_advance)
+            self.handle_connection(cl_socket, load_in_advance, service)
 
 
 if __name__ == "__main__":
