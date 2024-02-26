@@ -45,7 +45,8 @@ def get_only_child_directory(parent_directory):
 def parse_from_config(model_path):
     gpu = 0  # TODO: fix this
     limit_max_image_pixels = True
-    envelope = None
+    envelope = os.getenv("TS_SERVICE_ENVELOPE")
+    assert envelope == 'kserve', f'Unknown envelope {envelope}'
     
     # Constructing the paths based on the directory structure provided by the user.
     config_properties_path = os.path.join(model_path, "config", "config.properties")
