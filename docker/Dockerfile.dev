@@ -66,11 +66,17 @@ RUN --mount=type=cache,target=/var/cache/apt \
     openjdk-17-jdk \
     build-essential \
     vim \
+    sudo \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
     && cd /tmp
 
-RUN useradd -m model-server \
-    && mkdir -p /home/model-server/tmp
+RUN adduser --disabled-password --gecos "" model-server && \
+    adduser model-server sudo && \
+    echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
+    mkdir -p /home/model-server/tmp
+# RUN useradd -m model-server \
+#     && mkdir -p /home/model-server/tmp
 
 COPY --chown=model-server --from=compile-image /home/venv /home/venv
 
