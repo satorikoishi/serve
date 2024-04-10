@@ -4,7 +4,8 @@ set -e
     # Path to the socket file
     SOCKET_FILE=/home/model-server/tmp/.ts.sock.9000
     python /home/venv/lib/python3.9/site-packages/ts/model_service_worker.py --sock-type unix --sock-name $SOCKET_FILE --metrics-config /home/venv/lib/python3.9/site-packages/ts/configs/metrics.yaml --model-path /mnt/models &
-    
+    PID1=$!
+
     # Get the current date and time in the desired format without milliseconds
     current_time=$(date "+%Y-%m-%d %H:%M:%S")
     # Use date and awk to get milliseconds
@@ -21,19 +22,24 @@ set -e
     done
     echo "Socket file found at $SOCKET_FILE"
     eval "$@" &
+    PID2=$!
+
+    python /home/model-server/kserve_wrapper/__main__.py &
+    PID3=$!
 
     # Function to execute upon receiving the SIGTERM signal
     graceful_shutdown() {
         echo "SIGTERM signal received, starting graceful shutdown..."
-        pkill python
-        pkill java
-        pkill tail
+        kill $PID1 $PID2 $PID3
+        wait $PID1 $PID2 $PID3
+        # pkill python
+        # pkill java
         exit 0
     }
     # Trap SIGTERM signal and link it to the graceful_shutdown function
     trap 'graceful_shutdown' SIGTERM
-
-    python /home/model-server/kserve_wrapper/__main__.py
     
 # prevent docker exit
-tail -f /dev/null
+while true; do
+    sleep 1
+done
